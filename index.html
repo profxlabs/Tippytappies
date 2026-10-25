@@ -103,9 +103,20 @@
     document.getElementById("odds").textContent = cat === HAND
       ? "You got the rare one: hand tap dancing, a 0.1% chance."
       : "Dog tippy taps, a 99.9% chance.";
+
+    // Log which category this visit got as a GoatCounter event (its script loads async).
+    const name = cat === HAND ? "hand" : "dog";
+    let tries = 0;
+    (function track() {
+      if (window.goatcounter && window.goatcounter.count)
+        window.goatcounter.count({ path: "got-" + name, title: "Got the " + name + " GIF", event: true });
+      else if (tries++ < 20) setTimeout(track, 500);
+    })();
     img.src = "https://media.giphy.com/media/" + id + "/giphy.gif";
     document.getElementById("credit").href = "https://giphy.com/gifs/" + id;
   })();
 </script>
+<script data-goatcounter="https://tippytappies.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
