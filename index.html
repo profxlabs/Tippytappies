@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tippy Taps</title>
+<meta name="description" content="Tippy taps.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+<style>
+  :root { --bg: #fdf6ec; --fg: #3b2f2a; --muted: #9a8b80; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1d1916; --fg: #f3e9df; --muted: #7d6f65; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px; gap: 12px;
+  }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; }
+  img {
+    display: block; max-width: min(100%, 720px); max-height: 80vh;
+    border-radius: 12px; opacity: 0; transition: opacity .3s;
+  }
+  img.loaded { opacity: 1; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; max-width: 420px; }
+  footer p { margin: 0 0 6px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main><img id="gif" alt=""></main>
+<footer>
+  <p id="odds"></p>
+  <p>Roughly 1 in 1,000 people in the US are born unable to walk, so 1 in 1,000 visits gets hands tap dancing instead of paws.
+    (<a href="https://archive.cdc.gov/www_cdc_gov/ncbddd/cp/data.html" target="_blank" rel="noopener">CDC</a>: about 1 in 345 kids have cerebral palsy, and a third of them can't walk or walk very little.)</p>
+  <a id="credit" href="https://giphy.com" target="_blank" rel="noopener">GIF via GIPHY</a>
+</footer>
+
+<script>
+  // Odds of the hand tap dancing GIF: the share of US babies born unable to walk.
+  // CDC: about 1 in 345 US children have cerebral palsy, and 33.3% of them have
+  // limited or no walking ability. 1/345 * 0.333 ≈ 0.097%, so roughly 1 in 1,000.
+  // https://archive.cdc.gov/www_cdc_gov/ncbddd/cp/data.html
+  const HAND_ODDS = 1 / 1000;
+
+  // Free key from https://developers.giphy.com/dashboard/ (create an "API" app).
+  // Without one, the site picks from the built-in lists below instead.
+  const GIPHY_KEY = "";
+
+  // search: what to ask GIPHY for. depth: how far into the results to dig at random.
+  // ids: fallback GIPHY ids (the last part of a giphy.com/gifs/... link).
+  const DOG = {
+    search: "dog tippy taps", depth: 150, alt: "A happy dog doing tippy taps",
+    ids: ["WOZsizbEUWoxCSQLAM", "13ByqbM0hgfN7y", "UuebWyG4pts3rboawU", "hSFdoG5TV0l2FSVMVm",
+          "i3ihsFP8ZgkEc7Ed8c", "XHYm5oyFKdIE1eN7GO", "QEeQB8Kosm8Yh5WOF5", "XxpXiqWBTvZfOeyMcC"],
+  };
+  const HAND = {
+    search: "finger tap dance", depth: 0, alt: "Fingers tap dancing",
+    ids: ["MNQ99LxivI5GG8iADB", "TqaXZuZ7KVjecz1z2g", "mLGBTapOWHXV59wjzD", "yVVBho4vjkWGiBeCe0"],
+  };
+
+  // ?dog or ?hand forces one outcome, for checking both categories.
+  const q = location.search;
+  const cat = q.includes("hand") ? HAND : q.includes("dog") ? DOG
+    : Math.random() < HAND_ODDS ? HAND : DOG;
+
+  // Remember recently shown ids so a reload doesn't repeat one.
+  const SEEN_KEY = "tippy-seen";
+  let seen = [];
+  try { seen = JSON.parse(localStorage.getItem(SEEN_KEY)) || []; } catch {}
+
+  function choose(ids) {
+    const fresh = ids.filter(id => !seen.includes(id));
+    const pool = fresh.length ? fresh : ids.filter(id => id !== seen[seen.length - 1]);
+    return (pool.length ? pool : ids)[Math.floor(Math.random() * (pool.length || ids.length))];
+  }
+
+  async function searchIds() {
+    if (!GIPHY_KEY) return [];
+    const get = async offset => {
+      const url = "https://api.giphy.com/v1/gifs/search?rating=pg&limit=50&api_key=" + GIPHY_KEY +
+        "&q=" + encodeURIComponent(cat.search) + "&offset=" + offset;
+      const res = await fetch(url);
+      return res.ok ? (await res.json()).data.map(g => g.id) : [];
+    };
+    try {
+      const ids = await get(Math.floor(Math.random() * (cat.depth + 1)));
+      return ids.length ? ids : await get(0);
+    } catch { return []; }
+  }
+
+  (async () => {
+    const found = await searchIds();
+    const id = choose(found.length ? found : cat.ids);
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen.concat(id).slice(-40))); } catch {}
+
+    const img = document.getElementById("gif");
+    img.onload = () => img.classList.add("loaded");
+    img.alt = cat.alt;
+    document.getElementById("odds").textContent = cat === HAND
+      ? "You got the rare one: hand tap dancing, a 0.1% chance."
+      : "Dog tippy taps, a 99.9% chance.";
+    img.src = "https://media.giphy.com/media/" + id + "/giphy.gif";
+    document.getElementById("credit").href = "https://giphy.com/gifs/" + id;
+  })();
+</script>
+</body>
+</html>
