@@ -28,6 +28,11 @@
   footer { color: var(--muted); font-size: 12px; text-align: center; max-width: 420px; }
   footer p { margin: 0 0 6px; }
   footer a { color: inherit; }
+  #skip {
+    margin-top: 10px; padding: 2px 6px; border: 0; background: none; cursor: pointer;
+    font: inherit; font-size: 11px; color: var(--muted); opacity: .25; transition: opacity .2s;
+  }
+  #skip:hover, #skip:focus-visible { opacity: .8; }
 </style>
 </head>
 <body>
@@ -37,6 +42,7 @@
   <p>Roughly 1 in 1,000 people in the US are born unable to walk, so 1 in 1,000 visits gets hand tap dancing instead, in honor of people with disabilities.
     (<a href="https://archive.cdc.gov/www_cdc_gov/ncbddd/cp/data.html" target="_blank" rel="noopener">CDC</a>: about 1 in 345 kids have cerebral palsy, and a third of them can't walk or walk very little.)</p>
   <a id="credit" href="https://giphy.com" target="_blank" rel="noopener">GIF via GIPHY</a>
+  <br><button id="skip" type="button">skip leg day</button>
 </footer>
 
 <script>
@@ -78,7 +84,7 @@
     return (pool.length ? pool : ids)[Math.floor(Math.random() * (pool.length || ids.length))];
   }
 
-  async function searchIds() {
+  async function searchIds(cat) {
     if (!GIPHY_KEY) return [];
     const get = async offset => {
       const url = "https://api.giphy.com/v1/gifs/search?rating=pg&limit=50&api_key=" + GIPHY_KEY +
@@ -92,20 +98,23 @@
     } catch { return []; }
   }
 
-  (async () => {
-    const found = await searchIds();
+  // Shows one GIF from cat. via names how it was chosen, for the stats.
+  async function show(cat, via) {
+    const found = await searchIds(cat);
     const id = choose(found.length ? found : cat.ids);
     try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen.concat(id).slice(-40))); } catch {}
 
     const img = document.getElementById("gif");
+    img.classList.remove("loaded");
     img.onload = () => img.classList.add("loaded");
     img.alt = cat.alt;
     document.getElementById("odds").textContent = cat === HAND
-      ? "You got the rare one: hand tap dancing, a 0.1% chance."
+      ? (via === "button" ? "Leg day skipped. Hand tap dancing, just this once."
+        : "You got the rare one: hand tap dancing, a 0.1% chance.")
       : "Dog tippy taps, a 99.9% chance.";
 
     // Log which category this visit got as a GoatCounter event (its script loads async).
-    const name = cat === HAND ? "hand" : "dog";
+    const name = via === "button" ? "hand-button" : cat === HAND ? "hand" : "dog";
     let tries = 0;
     (function track() {
       if (window.goatcounter && window.goatcounter.count)
@@ -114,7 +123,11 @@
     })();
     img.src = "https://media.giphy.com/media/" + id + "/giphy.gif";
     document.getElementById("credit").href = "https://giphy.com/gifs/" + id;
-  })();
+  }
+
+  show(cat, "odds");
+  // The hidden button shows one hand tap dancing GIF; the next load is back to normal odds.
+  document.getElementById("skip").onclick = () => show(HAND, "button");
 </script>
 <script data-goatcounter="https://tippytappies.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
